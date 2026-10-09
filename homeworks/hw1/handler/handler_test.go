@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/lehatrutenb/course-go-python-2026/homeworks/hw1/handler/errors"
 	"github.com/stretchr/testify/require"
-	"github.com/tcarzverey/course-go-python/homeworks/hw1/handler/errors"
 )
 
 type dbStub struct {

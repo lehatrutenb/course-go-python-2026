@@ -1,0 +1,6 @@
+createDiceCmd:
+	go install ./homeworks/hw1/dice
+
+style:
+	go fmt ./homeworks/...
+	go vet ./homeworks/...
