@@ -13,7 +13,7 @@ import (
 
 func main() {
 	zapCfg := zap.NewProductionConfig()
-	zapCfg.Level.SetLevel(zapcore.InfoLevel)
+	zapCfg.Level.SetLevel(zapcore.WarnLevel)
 	lg, _ := zapCfg.Build()
 
 	defer lg.Sync()
