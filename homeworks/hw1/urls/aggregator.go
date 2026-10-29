@@ -3,14 +3,17 @@ package urls
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
-const MAX_AGGREGATE_WORKERS = 10
+const (
+	MAX_AGGREGATE_WORKERS = 10
+	MAX_AGGREGATE_URLS    = 1e18 // Lets be honest, we will not aggregate more than 1e18 urls.
+)
 
 type ResponseCodeAggregator struct {
 	client HttpClient
@@ -39,7 +42,7 @@ func (u *ResponseCodeAggregator) Aggregate(ctx context.Context, urls <-chan stri
 			res.setDone()
 		}()
 
-		aggregatenWg := sync.WaitGroup{}
+		aggregateSem := semaphore.NewWeighted(MAX_AGGREGATE_URLS)
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
@@ -53,27 +56,22 @@ func (u *ResponseCodeAggregator) Aggregate(ctx context.Context, urls <-chan stri
 					break urlsLoop
 				}
 				u.lg.Infow("aggregating url", "url", url)
-				aggregatenWg.Add(1)
+				aggregateSem.Acquire(ctx, 1)
 				u.eg.Go(func() error {
-					defer aggregatenWg.Done()
+					defer aggregateSem.Release(1)
 					u.aggregateURL(url, res)
 					return nil // Do not fail whole aggregation on one error.
 				})
 			}
 		}
 
-		go func() {
-			aggregatenWg.Wait()
-			cancel()
-		}()
-
-		<-ctx.Done()
+		aggregateSem.Acquire(ctx, MAX_AGGREGATE_URLS) // Cant be done that cleanly with waitgroup, because we need to wait with context.
 	}()
 
 	return res, nil
 }
 
-func (u *ResponseCodeAggregator) aggregateURL(url string, res *Result) error {
+func (u *ResponseCodeAggregator) aggregateURL(url string, res *aggregationResult) error {
 	resp, err := u.client.Get(url) // I strongly believe it is not possible to implement force cancelation without context pass (trade goroutine leak or use not Get) (but possibly lector put it to err != nil - in that case we will work correctly)
 	u.lg.Infow("got response", "url", url, "status", resp.StatusCode)
 	if err != nil {
