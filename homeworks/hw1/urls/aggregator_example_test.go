@@ -39,7 +39,7 @@ func TestAggregatorFinalResult(t *testing.T) {
 	res, err := aggregator.Aggregate(context.Background(), urls)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	time.Sleep(time.Second)
+	time.Sleep(time.Second) // synctest?:)
 	assert.True(t, res.Done())
 	assert.Equal(t, 2, res.GetResponsesCount(http.StatusOK))
 	assert.Equal(t, 0, res.GetResponsesCount(http.StatusNotFound))
